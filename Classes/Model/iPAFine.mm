@@ -200,28 +200,33 @@
 		NSLog(@"Found embedded.mobileprovision, deleting.");
 		[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
 	}
-	
-	NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:provPath, targetPath, nil]];
-	if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
+
+	if (provPath.length)
 	{
-		_error = [@"Product identifiers don't match: " stringByAppendingString:result ? result : @""];
+		NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:provPath, targetPath, nil]];
+		if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
+		{
+			_error = [@"Product identifiers don't match: " stringByAppendingString:result ? result : @""];
+		}
 	}
 }
 
 //
 - (void)signApp:(NSString *)appPath certName:(NSString *)certName
 {
-//	NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
-//	NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-
-	// TODO: Remove embedded
-
-	NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, /*resourceRulesArgument, */appPath, nil]];
-	
+	[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
 	NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
 	if (result2)
 	{
-		_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
+		NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
+		NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
+
+		NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
+		NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+		if (result2)
+		{
+			_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
+		}
 	}
 }
 
@@ -255,11 +260,8 @@
 	NSString *outPath = [self renameApp:appPath ipaPath:ipaPath];
 
 	// Provision
-	if (provPath.length)
-	{
-		[self provApp:appPath provPath:provPath];
-		if (_error) return;
-	}
+	[self provApp:appPath provPath:provPath];
+	if (_error) return;
 
 	// Sign
 	if (certName.length)
