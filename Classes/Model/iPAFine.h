@@ -9,6 +9,6 @@
 	NSString *_error;
 }
 
-- (NSString *)refine:(NSString *)ipaPath certName:(NSString *)certName provPath:(NSString *)provPath;
+- (NSString *)refine:(NSString *)ipaPath dylibPath:(NSString *)dylibPath certName:(NSString *)certName provPath:(NSString *)provPath;
 
 @end

@@ -192,6 +192,11 @@
 }
 
 //
+- (void)injectApp:(NSString *)appPath dylibPath:(NSString *)dylibPath
+{
+}
+
+//
 - (void)provApp:(NSString *)appPath provPath:(NSString *)provPath
 {
 	NSString *targetPath = [appPath stringByAppendingPathComponent:@"embedded.mobileprovision"];
@@ -215,18 +220,17 @@
 - (void)signApp:(NSString *)appPath certName:(NSString *)certName
 {
 	[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
-	NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-	if (result2)
+	NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+	if (result)
 	{
 		NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
 		NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-
-		NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
-		NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-		if (result2)
-		{
-			_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
-		}
+		result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
+	}
+	NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+	if (result2)
+	{
+		_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
 	}
 }
 
@@ -238,7 +242,7 @@
 }
 
 // 
-- (void)refineIPA:(NSString *)ipaPath certName:(NSString *)certName provPath:(NSString *)provPath
+- (void)refineIPA:(NSString *)ipaPath dylibPath:(NSString *)dylibPath certName:(NSString *)certName provPath:(NSString *)provPath
 {
 	// 
 	NSString *workPath = ipaPath.stringByDeletingPathExtension;//[NSTemporaryDirectory() stringByAppendingPathComponent:@"CeleWare.iPAFine"];
@@ -258,6 +262,10 @@
 
 	// Rename
 	NSString *outPath = [self renameApp:appPath ipaPath:ipaPath];
+
+	// Provision
+	[self injectApp:appPath dylibPath:dylibPath];
+	if (_error) return;
 
 	// Provision
 	[self provApp:appPath provPath:provPath];
@@ -281,7 +289,7 @@
 }
 
 //
-- (NSString *)refine:(NSString *)ipaPath certName:(NSString *)certName provPath:(NSString *)provPath
+- (NSString *)refine:(NSString *)ipaPath dylibPath:(NSString *)dylibPath certName:(NSString *)certName provPath:(NSString *)provPath
 {
 	_error = nil;
 	BOOL isDir = NO;
@@ -294,13 +302,13 @@
 			{
 				if ([file.pathExtension.lowercaseString isEqualToString:@"ipa"])
 				{
-					[self refineIPA:[ipaPath stringByAppendingPathComponent:file] certName:certName provPath:provPath];
+					[self refineIPA:[ipaPath stringByAppendingPathComponent:file] dylibPath:dylibPath certName:certName provPath:provPath];
 				}
 			}
 		}
 		else if ([ipaPath.pathExtension.lowercaseString isEqualToString:@"ipa"])
 		{
-			[self refineIPA:ipaPath certName:certName provPath:provPath];
+			[self refineIPA:ipaPath dylibPath:dylibPath certName:certName provPath:provPath];
 		}
 		else
 		{

@@ -30,8 +30,8 @@
 	if ([defaults valueForKey:@"CERT_NAME"])
 		[certField setStringValue:[defaults valueForKey:@"CERT_NAME"]];
 	if ([defaults valueForKey:@"MOBILEPROVISION_PATH"])
-		[provisioningPathField setStringValue:[defaults valueForKey:@"MOBILEPROVISION_PATH"]];
-	
+		[provField setStringValue:[defaults valueForKey:@"MOBILEPROVISION_PATH"]];
+
 	if (![[NSFileManager defaultManager] fileExistsAtPath:@"/usr/bin/zip"])
 	{
 		NSRunAlertPanel(@"Error", 
@@ -73,7 +73,7 @@
 }
 
 //
-- (IBAction)provisioningBrowse:(id)sender
+- (IBAction)browseProv:(id)sender
 {
 	NSOpenPanel* openDlg = [NSOpenPanel openPanel];
 	
@@ -85,8 +85,13 @@
 	if ( [openDlg runModalForTypes:[NSArray arrayWithObject:@"mobileprovision"]] == NSOKButton )
 	{		
 		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
-		[provisioningPathField setStringValue:fileNameOpened];
+		[provField setStringValue:fileNameOpened];
 	}
+}
+
+//
+- (IBAction)browseDylib:(id)sender
+{
 }
 
 //
@@ -101,7 +106,7 @@
 - (IBAction)resign:(id)sender
 {
 	[defaults setValue:[certField stringValue] forKey:@"CERT_NAME"];
-	[defaults setValue:[provisioningPathField stringValue] forKey:@"MOBILEPROVISION_PATH"];
+	[defaults setValue:[provField stringValue] forKey:@"MOBILEPROVISION_PATH"];
 	[defaults synchronize];
 	
 	[pathField setEnabled:FALSE];
@@ -122,7 +127,7 @@
 - (void)resignThread
 {
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSString *error = [super refine:pathField.stringValue certName:certField.stringValue provPath:provisioningPathField.stringValue];
+	NSString *error = [super refine:pathField.stringValue dylibPath:dylibField.stringValue certName:certField.stringValue provPath:provField.stringValue];
 	[self performSelectorOnMainThread:@selector(resignDone:) withObject:error waitUntilDone:YES];
 	[pool release];
 }

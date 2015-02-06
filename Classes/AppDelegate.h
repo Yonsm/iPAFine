@@ -10,11 +10,12 @@
 	NSUserDefaults *defaults;
 
 	IBOutlet NSTextField *pathField;
-	IBOutlet NSTextField *provisioningPathField;
+	IBOutlet NSTextField *provField;
 	IBOutlet NSTextField *certField;
+	IBOutlet NSTextField *dylibField;
 
 	IBOutlet NSButton	*browseButton;
-	IBOutlet NSButton	*provisioningBrowseButton;
+	IBOutlet NSButton	*browseProvButton;
 	IBOutlet NSButton	*resignButton;
 	IBOutlet NSTextField *statusLabel;
 	IBOutlet NSProgressIndicator *flurry;
