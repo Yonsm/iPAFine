@@ -1,7 +1,7 @@
 
 
 #import "AppDelegate.h"
-
+#include <mach-o/loader.h>
 
 @implementation iPAFine
 
@@ -60,17 +60,17 @@
 //
 - (void)stripApp:(NSString *)appPath
 {
+	// Find executable
 	NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
 	NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
-
 	NSString *exeName = [info objectForKey:@"CFBundleExecutable"];
 	if (exeName == nil)
 	{
 		_error = @"Strip failed: No CFBundleExecutable";
 		return;
 	}
-
 	NSString *exePath = [appPath stringByAppendingPathComponent:exeName];
+
 	NSString *result = [self doTask:@"/usr/bin/lipo" arguments:[NSArray arrayWithObjects:@"-info", exePath, nil]];
 	
 	if (([result rangeOfString:@"armv6 armv7"].location == NSNotFound) && ([result rangeOfString:@"armv7 armv6"].location == NSNotFound))
@@ -207,6 +207,89 @@
 		{
 			_error = [@"Failed to copy dylib file: " stringByAppendingString:result ? result : @""];
 		}
+		else
+		{
+			// Find executable
+			NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
+			NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
+			NSString *exeName = [info objectForKey:@"CFBundleExecutable"];
+			if (exeName == nil)
+			{
+				_error = [NSString stringWithFormat:@"Inject failed: No CFBundleExecutable on %@", infoPath];
+				return;
+			}
+			NSString *exePath = [appPath stringByAppendingPathComponent:exeName];
+			int fd = open(exePath.UTF8String, O_RDWR, 0777);
+			if (fd < 0)
+			{
+				_error = [NSString stringWithFormat:@"Inject failed: failed to open %@", exePath];
+				return;
+			}
+			else
+			{
+				struct mach_header header;
+				read(fd, &header, sizeof(header));
+				if (header.magic != MH_MAGIC || header.magic != MH_MAGIC_64)
+				{
+					_error = [NSString stringWithFormat:@"Inject failed: Invalid executable %@", exePath];
+				}
+				else
+				{
+					if (header.magic != MH_MAGIC_64) lseek(fd, 4, SEEK_CUR);
+
+					char *buffer = (char *)malloc(header.sizeofcmds);
+					read(fd, buffer, header.sizeofcmds);
+
+					const char *dylib = [@"@executable_path" stringByAppendingPathComponent:[dylibPath lastPathComponent]].UTF8String;
+					struct load_command_dylib {
+						uint32_t cmd;
+						uint32_t cmdsize;
+						uint32_t name;
+						uint32_t timestamp;
+						uint32_t current_version;
+					} *p = (struct load_command_dylib *)buffer;
+					struct load_command_dylib *last = NULL;
+					for (uint32_t i = 0; i < header.ncmds; i++, p = (struct load_command_dylib *)((char *)p + p->cmdsize))
+					{
+						if (p->cmd == LC_LOAD_DYLIB || p->cmd == LC_LOAD_WEAK_DYLIB)
+						{
+							char *name = (char *)p + p->name;
+							if (strcmp(dylib, name) == 0)
+							{
+								NSLog(@"Already Injected: %@ with %s", exePath, dylib);
+								return;
+							}
+							last = p;
+						}
+					}
+
+					if (last)
+					{
+						struct load_command_dylib *inject = (struct load_command_dylib *)((char *)last + last->cmdsize);
+						char *moveout = (char *)inject + last->cmdsize;
+						memmove(moveout, inject, header.sizeofcmds - (moveout - buffer));
+						memcpy(inject, last, last->cmdsize);
+						inject->cmd = LC_LOAD_DYLIB;
+						inject->current_version = 0x00010000;
+
+						lseek(fd, -header.sizeofcmds, SEEK_CUR);
+						write(fd, buffer, header.sizeofcmds);
+
+						header.ncmds++;
+						header.sizeofcmds += inject->cmdsize;
+						lseek(fd, 0, SEEK_SET);
+						write(fd, &header, header.sizeofcmds);
+					}
+					else
+					{
+						_error = [NSString stringWithFormat:@"Inject failed: No valid LC_LOAD_DYLIB %@", exePath];
+					}
+
+					free(buffer);
+				}
+				close(fd);
+			}
+		}
 	}
 }
 
@@ -235,17 +318,30 @@
 {
 	if (certName.length)
 	{
-		[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
-		NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-		if (result)
+		BOOL isDir;
+		if ([[NSFileManager defaultManager] fileExistsAtPath:appPath isDirectory:&isDir] && isDir)
 		{
-			NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
-			NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
-			NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-			if (result2)
+			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
+			NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+			if (result)
 			{
-				_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
+				NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
+				NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
+				[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
+				NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+				if (result2)
+				{
+					_error = [NSString stringWithFormat:@"Failed to sign %@: %@\n\n%@", appPath, result, result2];
+				}
+			}
+		}
+		else
+		{
+			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
+			NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+			if (result.length)
+			{
+				_error = [NSString stringWithFormat:@"Failed to sign %@: %@", appPath, result];
 			}
 		}
 	}
@@ -264,7 +360,7 @@
 	// 
 	NSString *workPath = ipaPath.stringByDeletingPathExtension;//[NSTemporaryDirectory() stringByAppendingPathComponent:@"CeleWare.iPAFine"];
 	
-	NSLog(@"Setting up working directory in %@",workPath);
+	//NSLog(@"Setting up working directory in %@",workPath);
 	[[NSFileManager defaultManager] removeItemAtPath:workPath error:nil];
 	[[NSFileManager defaultManager] createDirectoryAtPath:workPath withIntermediateDirectories:TRUE attributes:nil error:nil];
 	
