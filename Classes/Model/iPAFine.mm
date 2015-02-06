@@ -230,6 +230,7 @@
 					if (strcmp(dylib, name) == 0)
 					{
 						NSLog(@"Already Injected: %@ with %s", exePath, dylib);
+						close(fd);
 						return;
 					}
 					last = p;
@@ -245,14 +246,18 @@
 			{
 				struct dylib_command *inject = (struct dylib_command *)((char *)last + last->cmdsize);
 				char *movefrom = (char *)inject;
-				char *moveout = (char *)inject + last->cmdsize;
+				uint32_t cmdsize = sizeof(*inject) + (uint32_t)strlen(dylib) + 1;
+				cmdsize = (cmdsize + 0x10) & 0xFFFFFFF0;
+				char *moveout = (char *)inject + cmdsize;
 				for (int i = (int)(header.sizeofcmds - (movefrom - buffer) - 1); i >= 0; i--)
 				{
 					moveout[i] = movefrom[i];
 				}
-				memcpy(inject, last, last->cmdsize);
+				memset(inject, 0, cmdsize);
 				inject->cmd = LC_LOAD_DYLIB;
-				//inject->dylib.timestamp = 2;
+				inject->cmdsize = cmdsize;
+				inject->dylib.name.offset = sizeof(dylib_command);
+				inject->dylib.timestamp = 2;
 				inject->dylib.current_version = 0x00010000;
 				inject->dylib.compatibility_version = 0x00010000;
 				strcpy((char *)inject + inject->dylib.name.offset, dylib);
