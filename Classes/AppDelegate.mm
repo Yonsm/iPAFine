@@ -18,6 +18,10 @@
 	[flurry setAlphaValue:0.5];
 	defaults = [NSUserDefaults standardUserDefaults];
 	
+	if ([defaults valueForKey:@"IPA_PATH"])
+		[pathField setStringValue:[defaults valueForKey:@"IPA_PATH"]];
+	if ([defaults valueForKey:@"DYLIB_PATH"])
+		[dylibField setStringValue:[defaults valueForKey:@"DYLIB_PATH"]];
 	if ([defaults valueForKey:@"CERT_NAME"])
 		[certField setStringValue:[defaults valueForKey:@"CERT_NAME"]];
 	if ([defaults valueForKey:@"MOBILEPROVISION_PATH"])
@@ -108,6 +112,8 @@
 //
 - (IBAction)resign:(id)sender
 {
+	[defaults setValue:[pathField stringValue] forKey:@"IPA_PATH"];
+	[defaults setValue:[dylibField stringValue] forKey:@"DYLIB_PATH"];
 	[defaults setValue:[certField stringValue] forKey:@"CERT_NAME"];
 	[defaults setValue:[provField stringValue] forKey:@"MOBILEPROVISION_PATH"];
 	[defaults synchronize];
