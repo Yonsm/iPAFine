@@ -5,8 +5,6 @@
 //
 @interface AppDelegate : iPAFine <NSApplicationDelegate, NSTextFieldDelegate>
 {
-	NSWindow *window;
-	
 	NSUserDefaults *defaults;
 
 	IBOutlet NSTextField *pathField;

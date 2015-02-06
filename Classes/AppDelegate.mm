@@ -126,10 +126,11 @@
 //
 - (void)resignThread
 {
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	NSString *error = [super refine:pathField.stringValue dylibPath:dylibField.stringValue certName:certField.stringValue provPath:provField.stringValue];
-	[self performSelectorOnMainThread:@selector(resignDone:) withObject:error waitUntilDone:YES];
-	[pool release];
+	@autoreleasepool
+	{
+		NSString *error = [super refine:pathField.stringValue dylibPath:dylibField.stringValue certName:certField.stringValue provPath:provField.stringValue];
+		[self performSelectorOnMainThread:@selector(resignDone:) withObject:error waitUntilDone:YES];
+	}
 }
 
 //
