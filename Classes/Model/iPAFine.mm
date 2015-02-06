@@ -367,31 +367,40 @@
 			}
 
 			//
-			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, nil]];
-			NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-			if (result)
+			NSString *result1 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, nil]];
+			if ([result1 rangeOfString:@"replacing existing signature"].location == NSNotFound)
 			{
-				NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
-				NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-				[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, appPath, nil]];
 				NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-				if (result2)
+				if (result2.length)
 				{
-					_error = [NSString stringWithFormat:@"Failed to sign %@: %@\n\n%@", appPath, result, result2];
+					NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
+					NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
+					NSString *result3 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, appPath, nil]];
+					if ([result3 rangeOfString:@"replacing existing signature"].location == NSNotFound)
+					{
+						NSString *result4 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+						if (result4.length)
+						{
+							_error = [NSString stringWithFormat:@"Failed to sign %@\n\n%@\n\n%@\n\n%@\n\n%@", appPath, result1, result2, result3, result4];
+						}
+					}
 				}
-			}
-			if (!_error)
-			{
-				[[NSFileManager defaultManager] removeItemAtPath:entitlementsPath error:nil];
+				if (!_error)
+				{
+					[[NSFileManager defaultManager] removeItemAtPath:entitlementsPath error:nil];
+				}
 			}
 		}
 		else
 		{
-			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
-			NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-			if (result.length)
+			NSString *result1 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
+			if ([result1 rangeOfString:@"replacing existing signature"].location == NSNotFound)
 			{
-				_error = [NSString stringWithFormat:@"Failed to sign %@: %@", appPath, result];
+				NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+				if (result2.length)
+				{
+					_error = [NSString stringWithFormat:@"Failed to sign %@\n\n%@\n\n%@", appPath, result1, result2];
+				}
 			}
 		}
 	}
