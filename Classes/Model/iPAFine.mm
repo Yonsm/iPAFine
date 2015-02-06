@@ -252,21 +252,22 @@
 				struct load_command_dylib *inject = (struct load_command_dylib *)((char *)last + last->cmdsize);
 				char *movefrom = (char *)inject;
 				char *moveout = (char *)inject + last->cmdsize;
-				for (int i = (int)(header.sizeofcmds - (moveout - buffer) - 1); i >= 0; i--)
+				for (int i = (int)(header.sizeofcmds - (movefrom - buffer) - 1); i >= 0; i--)
 				{
 					moveout[i] = movefrom[i];
 				}
 				memcpy(inject, last, last->cmdsize);
 				inject->cmd = LC_LOAD_DYLIB;
 				inject->current_version = 0x00010000;
-
-				lseek(fd, -header.sizeofcmds, SEEK_CUR);
-				write(fd, buffer, header.sizeofcmds + inject->cmdsize);
+				strcpy((char *)inject + inject->name, dylib);
 
 				header.ncmds++;
 				header.sizeofcmds += inject->cmdsize;
-				//lseek(fd, 0, SEEK_SET);
-				//write(fd, &header, header.sizeofcmds);
+				lseek(fd, 0, SEEK_SET);
+				write(fd, &header, sizeof(header));
+
+				lseek(fd, (header.magic == MH_MAGIC_64) ? sizeof(mach_header_64) : sizeof(mach_header), SEEK_SET);
+				write(fd, buffer, header.sizeofcmds);
 			}
 			else
 			{
@@ -341,13 +342,37 @@
 		BOOL isDir;
 		if ([[NSFileManager defaultManager] fileExistsAtPath:appPath isDirectory:&isDir] && isDir)
 		{
-			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
+			// 生成 application-identifier entitlements
+			NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
+			NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:infoPath];
+			NSString *bundleID = info[@"CFBundleIdentifier"];
+
+			//security find-certificate -c "iPhone Developer: Qian Wu (V569CJEC8A)" | grep \"subj\"\<blob\> | grep "\\\\0230\\\\021\\\\006\\\\003U\\\\004\\\\013\\\\014\\\\012" | sed 's/.*\\0230\\021\\006\\003U\\004\\013\\014\\012\(.\{10\}\).*/\1/'
+			NSString *entitlementsPath = nil;
+			NSString *certInfo = [self doTask:@"/usr/bin/security" arguments:@[@"find-certificate", @"-c", certName]];
+			NSRange range = [certInfo rangeOfString:@"\\0230\\021\\006\\003U\\004\\013\\014\\012"];
+			if (range.location != NSNotFound)
+			{
+				range.location += range.length;
+				range.length = 10;
+				NSString *teamID = [certInfo substringWithRange:range];
+				if (teamID)
+				{
+					NSDictionary *dict = @{@"application-identifier":[NSString stringWithFormat:@"%@.%@", teamID, bundleID],
+										   @"com.apple.developer.team-identifier":teamID};
+					entitlementsPath = [appPath.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent stringByAppendingFormat:@"%@.xcent", bundleID];
+					[dict writeToFile:entitlementsPath atomically:YES];
+				}
+			}
+
+			//
+			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, nil]];
 			NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
 			if (result)
 			{
 				NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
 				NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-				[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
+				[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, appPath, nil]];
 				NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
 				if (result2)
 				{
@@ -420,7 +445,7 @@
 {
 	_error = nil;
 
-	if (dylibPath.length)
+	if (dylibPath.length && [[NSFileManager defaultManager] fileExistsAtPath:dylibPath])
 	{
 		[self signApp:dylibPath certName:certName];
 		if (_error) return _error;
