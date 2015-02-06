@@ -152,6 +152,7 @@
 				2447BCDF14C9824400A34F0F /* Sources */,
 				2447BCE014C9824400A34F0F /* Frameworks */,
 				2447BCE114C9824400A34F0F /* Resources */,
+				24BAA8781A84C0BF00FDA4E4 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -202,6 +203,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		24BAA8781A84C0BF00FDA4E4 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ $CONFIGURATION != Debug ]; then\ncd $BUILT_PRODUCTS_DIR\nrm -f $PROJECT_DIR/Release/$FULL_PRODUCT_NAME.zip\nzip -r -X $PROJECT_DIR/Release/$FULL_PRODUCT_NAME.zip *.app\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2447BCDF14C9824400A34F0F /* Sources */ = {

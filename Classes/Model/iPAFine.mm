@@ -220,19 +220,13 @@
 				dylibPath = [@"@executable_path" stringByAppendingPathComponent:[dylibPath lastPathComponent]];
 			}
 			const char *dylib = dylibPath.UTF8String;
-			struct load_command_dylib {
-				uint32_t cmd;
-				uint32_t cmdsize;
-				uint32_t name;
-				uint32_t timestamp;
-				uint32_t current_version;
-			} *p = (struct load_command_dylib *)buffer;
-			struct load_command_dylib *last = NULL;
-			for (uint32_t i = 0; i < header.ncmds; i++, p = (struct load_command_dylib *)((char *)p + p->cmdsize))
+			struct dylib_command *p = (struct dylib_command *)buffer;
+			struct dylib_command *last = NULL;
+			for (uint32_t i = 0; i < header.ncmds; i++, p = (struct dylib_command *)((char *)p + p->cmdsize))
 			{
 				if (p->cmd == LC_LOAD_DYLIB || p->cmd == LC_LOAD_WEAK_DYLIB)
 				{
-					char *name = (char *)p + p->name;
+					char *name = (char *)p + p->dylib.name.offset;
 					if (strcmp(dylib, name) == 0)
 					{
 						NSLog(@"Already Injected: %@ with %s", exePath, dylib);
@@ -249,7 +243,7 @@
 
 			if (last)
 			{
-				struct load_command_dylib *inject = (struct load_command_dylib *)((char *)last + last->cmdsize);
+				struct dylib_command *inject = (struct dylib_command *)((char *)last + last->cmdsize);
 				char *movefrom = (char *)inject;
 				char *moveout = (char *)inject + last->cmdsize;
 				for (int i = (int)(header.sizeofcmds - (movefrom - buffer) - 1); i >= 0; i--)
@@ -258,8 +252,10 @@
 				}
 				memcpy(inject, last, last->cmdsize);
 				inject->cmd = LC_LOAD_DYLIB;
-				inject->current_version = 0x00010000;
-				strcpy((char *)inject + inject->name, dylib);
+				//inject->dylib.timestamp = 2;
+				inject->dylib.current_version = 0x00010000;
+				inject->dylib.compatibility_version = 0x00010000;
+				strcpy((char *)inject + inject->dylib.name.offset, dylib);
 
 				header.ncmds++;
 				header.sizeofcmds += inject->cmdsize;
@@ -360,7 +356,7 @@
 				{
 					NSDictionary *dict = @{@"application-identifier":[NSString stringWithFormat:@"%@.%@", teamID, bundleID],
 										   @"com.apple.developer.team-identifier":teamID};
-					entitlementsPath = [appPath.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent stringByAppendingFormat:@"%@.xcent", bundleID];
+					entitlementsPath = [appPath.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent.stringByDeletingLastPathComponent stringByAppendingFormat:@"/%@.xcent", bundleID];
 					[dict writeToFile:entitlementsPath atomically:YES];
 				}
 			}
@@ -378,6 +374,10 @@
 				{
 					_error = [NSString stringWithFormat:@"Failed to sign %@: %@\n\n%@", appPath, result, result2];
 				}
+			}
+			if (!_error)
+			{
+				[[NSFileManager defaultManager] removeItemAtPath:entitlementsPath error:nil];
 			}
 		}
 		else
