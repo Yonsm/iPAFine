@@ -192,104 +192,124 @@
 }
 
 //
+- (void)injectMachO:(NSString *)exePath dylibPath:(NSString *)dylibPath
+{
+	int fd = open(exePath.UTF8String, O_RDWR, 0777);
+	if (fd < 0)
+	{
+		_error = [NSString stringWithFormat:@"Inject failed: failed to open %@", exePath];
+		return;
+	}
+	else
+	{
+		struct mach_header header;
+		read(fd, &header, sizeof(header));
+		if (header.magic != MH_MAGIC && header.magic != MH_MAGIC_64)
+		{
+			_error = [NSString stringWithFormat:@"Inject failed: Invalid executable %@", exePath];
+		}
+		else
+		{
+			if (header.magic == MH_MAGIC_64) lseek(fd, sizeof(mach_header_64), SEEK_SET);
+
+			char *buffer = (char *)malloc(header.sizeofcmds + 2048);
+			read(fd, buffer, header.sizeofcmds);
+
+			if ([[NSFileManager defaultManager] fileExistsAtPath:dylibPath])
+			{
+				dylibPath = [@"@executable_path" stringByAppendingPathComponent:[dylibPath lastPathComponent]];
+			}
+			const char *dylib = dylibPath.UTF8String;
+			struct load_command_dylib {
+				uint32_t cmd;
+				uint32_t cmdsize;
+				uint32_t name;
+				uint32_t timestamp;
+				uint32_t current_version;
+			} *p = (struct load_command_dylib *)buffer;
+			struct load_command_dylib *last = NULL;
+			for (uint32_t i = 0; i < header.ncmds; i++, p = (struct load_command_dylib *)((char *)p + p->cmdsize))
+			{
+				if (p->cmd == LC_LOAD_DYLIB || p->cmd == LC_LOAD_WEAK_DYLIB)
+				{
+					char *name = (char *)p + p->name;
+					if (strcmp(dylib, name) == 0)
+					{
+						NSLog(@"Already Injected: %@ with %s", exePath, dylib);
+						return;
+					}
+					last = p;
+				}
+			}
+
+			if ((char *)p - buffer != header.sizeofcmds)
+			{
+				NSLog(@"LC payload not mismatch: %@", exePath);
+			}
+
+			if (last)
+			{
+				struct load_command_dylib *inject = (struct load_command_dylib *)((char *)last + last->cmdsize);
+				char *movefrom = (char *)inject;
+				char *moveout = (char *)inject + last->cmdsize;
+				for (int i = (int)(header.sizeofcmds - (moveout - buffer) - 1); i >= 0; i--)
+				{
+					moveout[i] = movefrom[i];
+				}
+				memcpy(inject, last, last->cmdsize);
+				inject->cmd = LC_LOAD_DYLIB;
+				inject->current_version = 0x00010000;
+
+				lseek(fd, -header.sizeofcmds, SEEK_CUR);
+				write(fd, buffer, header.sizeofcmds + inject->cmdsize);
+
+				header.ncmds++;
+				header.sizeofcmds += inject->cmdsize;
+				//lseek(fd, 0, SEEK_SET);
+				//write(fd, &header, header.sizeofcmds);
+			}
+			else
+			{
+				_error = [NSString stringWithFormat:@"Inject failed: No valid LC_LOAD_DYLIB %@", exePath];
+			}
+
+			free(buffer);
+		}
+		close(fd);
+	}
+}
+
+//
 - (void)injectApp:(NSString *)appPath dylibPath:(NSString *)dylibPath
 {
 	if (dylibPath.length)
 	{
-		NSString *targetPath = [appPath stringByAppendingPathComponent:[dylibPath lastPathComponent]];
-		if ([[NSFileManager defaultManager] fileExistsAtPath:targetPath])
+		if ([[NSFileManager defaultManager] fileExistsAtPath:dylibPath])
 		{
-			[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
-		}
-
-		NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:dylibPath, targetPath, nil]];
-		if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
-		{
-			_error = [@"Failed to copy dylib file: " stringByAppendingString:result ? result : @""];
-		}
-		else
-		{
-			// Find executable
-			NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
-			NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
-			NSString *exeName = [info objectForKey:@"CFBundleExecutable"];
-			if (exeName == nil)
+			NSString *targetPath = [appPath stringByAppendingPathComponent:[dylibPath lastPathComponent]];
+			if ([[NSFileManager defaultManager] fileExistsAtPath:targetPath])
 			{
-				_error = [NSString stringWithFormat:@"Inject failed: No CFBundleExecutable on %@", infoPath];
-				return;
+				[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
 			}
-			NSString *exePath = [appPath stringByAppendingPathComponent:exeName];
-			int fd = open(exePath.UTF8String, O_RDWR, 0777);
-			if (fd < 0)
+
+			NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:dylibPath, targetPath, nil]];
+			if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
 			{
-				_error = [NSString stringWithFormat:@"Inject failed: failed to open %@", exePath];
-				return;
-			}
-			else
-			{
-				struct mach_header header;
-				read(fd, &header, sizeof(header));
-				if (header.magic != MH_MAGIC || header.magic != MH_MAGIC_64)
-				{
-					_error = [NSString stringWithFormat:@"Inject failed: Invalid executable %@", exePath];
-				}
-				else
-				{
-					if (header.magic != MH_MAGIC_64) lseek(fd, 4, SEEK_CUR);
-
-					char *buffer = (char *)malloc(header.sizeofcmds);
-					read(fd, buffer, header.sizeofcmds);
-
-					const char *dylib = [@"@executable_path" stringByAppendingPathComponent:[dylibPath lastPathComponent]].UTF8String;
-					struct load_command_dylib {
-						uint32_t cmd;
-						uint32_t cmdsize;
-						uint32_t name;
-						uint32_t timestamp;
-						uint32_t current_version;
-					} *p = (struct load_command_dylib *)buffer;
-					struct load_command_dylib *last = NULL;
-					for (uint32_t i = 0; i < header.ncmds; i++, p = (struct load_command_dylib *)((char *)p + p->cmdsize))
-					{
-						if (p->cmd == LC_LOAD_DYLIB || p->cmd == LC_LOAD_WEAK_DYLIB)
-						{
-							char *name = (char *)p + p->name;
-							if (strcmp(dylib, name) == 0)
-							{
-								NSLog(@"Already Injected: %@ with %s", exePath, dylib);
-								return;
-							}
-							last = p;
-						}
-					}
-
-					if (last)
-					{
-						struct load_command_dylib *inject = (struct load_command_dylib *)((char *)last + last->cmdsize);
-						char *moveout = (char *)inject + last->cmdsize;
-						memmove(moveout, inject, header.sizeofcmds - (moveout - buffer));
-						memcpy(inject, last, last->cmdsize);
-						inject->cmd = LC_LOAD_DYLIB;
-						inject->current_version = 0x00010000;
-
-						lseek(fd, -header.sizeofcmds, SEEK_CUR);
-						write(fd, buffer, header.sizeofcmds);
-
-						header.ncmds++;
-						header.sizeofcmds += inject->cmdsize;
-						lseek(fd, 0, SEEK_SET);
-						write(fd, &header, header.sizeofcmds);
-					}
-					else
-					{
-						_error = [NSString stringWithFormat:@"Inject failed: No valid LC_LOAD_DYLIB %@", exePath];
-					}
-
-					free(buffer);
-				}
-				close(fd);
+				_error = [@"Failed to copy dylib file: " stringByAppendingString:result ? result : @""];
 			}
 		}
+
+		// Find executable
+		NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
+		NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
+		NSString *exeName = [info objectForKey:@"CFBundleExecutable"];
+		if (exeName == nil)
+		{
+			_error = [NSString stringWithFormat:@"Inject failed: No CFBundleExecutable on %@", infoPath];
+			return;
+		}
+		NSString *exePath = [appPath stringByAppendingPathComponent:exeName];
+		[self injectMachO:exePath dylibPath:dylibPath];
 	}
 }
 
@@ -426,7 +446,12 @@
 		}
 		else
 		{
-			_error = NSLocalizedString(@"You must choose an IPA file.", @"必须选择 IPA 文件。");
+			if (dylibPath.length)
+			{
+				[self injectMachO:ipaPath dylibPath:dylibPath];
+				if (_error == nil) return nil;
+			}
+			_error = NSLocalizedString(@"You must choose an IPA file.", @"必须选择 IPA 或 Mach-O 文件。");
 		}
 	}
 	else

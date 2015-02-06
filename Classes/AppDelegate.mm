@@ -83,6 +83,18 @@
 //
 - (IBAction)browseDylib:(id)sender
 {
+	NSOpenPanel* openDlg = [NSOpenPanel openPanel];
+
+	[openDlg setCanChooseFiles:TRUE];
+	[openDlg setCanChooseDirectories:FALSE];
+	[openDlg setAllowsMultipleSelection:FALSE];
+	[openDlg setAllowsOtherFileTypes:FALSE];
+
+	if ( [openDlg runModalForTypes:[NSArray arrayWithObject:@"dylib"]] == NSOKButton )
+	{
+		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
+		[dylibField setStringValue:fileNameOpened];
+	}
 }
 
 //
