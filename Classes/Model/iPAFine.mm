@@ -194,6 +194,20 @@
 //
 - (void)injectApp:(NSString *)appPath dylibPath:(NSString *)dylibPath
 {
+	if (dylibPath.length)
+	{
+		NSString *targetPath = [appPath stringByAppendingPathComponent:[dylibPath lastPathComponent]];
+		if ([[NSFileManager defaultManager] fileExistsAtPath:targetPath])
+		{
+			[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
+		}
+
+		NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:dylibPath, targetPath, nil]];
+		if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
+		{
+			_error = [@"Failed to copy dylib file: " stringByAppendingString:result ? result : @""];
+		}
+	}
 }
 
 //
@@ -202,7 +216,7 @@
 	NSString *targetPath = [appPath stringByAppendingPathComponent:@"embedded.mobileprovision"];
 	if ([[NSFileManager defaultManager] fileExistsAtPath:targetPath])
 	{
-		NSLog(@"Found embedded.mobileprovision, deleting.");
+		//NSLog(@"Found embedded.mobileprovision, deleting.");
 		[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
 	}
 
@@ -211,7 +225,7 @@
 		NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:provPath, targetPath, nil]];
 		if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
 		{
-			_error = [@"Product identifiers don't match: " stringByAppendingString:result ? result : @""];
+			_error = [@"Failed to copy provisioning file: " stringByAppendingString:result ?: @""];
 		}
 	}
 }
@@ -219,18 +233,21 @@
 //
 - (void)signApp:(NSString *)appPath certName:(NSString *)certName
 {
-	[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
-	NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-	if (result)
+	if (certName.length)
 	{
-		NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
-		NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
-		result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
-	}
-	NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
-	if (result2)
-	{
-		_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
+		[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, nil]];
+		NSString *result = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+		if (result)
+		{
+			NSString *resourceRulesPath = [[NSBundle mainBundle] pathForResource:@"ResourceRules" ofType:@"plist"];
+			NSString *resourceRulesArgument = [NSString stringWithFormat:@"--resource-rules=%@",resourceRulesPath];
+			[self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, resourceRulesArgument, appPath, nil]];
+			NSString *result2 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-v", appPath, nil]];
+			if (result2)
+			{
+				_error = [@"Sign error: " stringByAppendingFormat:@"%@\n\n%@", result2, result];
+			}
+		}
 	}
 }
 
@@ -257,8 +274,8 @@
 	if (_error) return;
 
 	// Strip
-	[self stripApp:appPath];
-	if (_error) return;
+	//[self stripApp:appPath];
+	//if (_error) return;
 
 	// Rename
 	NSString *outPath = [self renameApp:appPath ipaPath:ipaPath];
@@ -272,18 +289,12 @@
 	if (_error) return;
 
 	// Sign
-	if (certName.length)
-	{
-		[self signApp:appPath certName:certName];
-		if (_error) return;
-	}
+	[self signApp:appPath certName:certName];
+	if (_error) return;
 
 	// Remove origin
-	if (1)
-	{
-		[[NSFileManager defaultManager] removeItemAtPath:ipaPath error:nil];
-	}
-	
+	[[NSFileManager defaultManager] removeItemAtPath:ipaPath error:nil];
+
 	// Zip
 	[self zipIPA:workPath outPath:outPath];
 }
@@ -292,6 +303,13 @@
 - (NSString *)refine:(NSString *)ipaPath dylibPath:(NSString *)dylibPath certName:(NSString *)certName provPath:(NSString *)provPath
 {
 	_error = nil;
+
+	if (dylibPath.length)
+	{
+		[self signApp:dylibPath certName:certName];
+		if (_error) return _error;
+	}
+
 	BOOL isDir = NO;
 	if ([[NSFileManager defaultManager] fileExistsAtPath:ipaPath isDirectory:&isDir])
 	{
@@ -317,7 +335,6 @@
 	}
 	else
 	{
-		// Multi files?
 		_error = @"Path not found";
 	}
 	return _error;
