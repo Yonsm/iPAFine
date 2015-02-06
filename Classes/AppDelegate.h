@@ -15,7 +15,6 @@
 	IBOutlet NSButton	*browseButton;
 	IBOutlet NSButton	*browseProvButton;
 	IBOutlet NSButton	*resignButton;
-	IBOutlet NSTextField *statusLabel;
 	IBOutlet NSProgressIndicator *flurry;
 }
 

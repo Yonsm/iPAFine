@@ -13,17 +13,8 @@
 }
 
 //
-- (void)resizeWindow:(int)newHeight
-{
-	NSRect r;
-	r = NSMakeRect([window frame].origin.x - ([window frame].size.width - (int)(NSWidth([window frame]))), [window frame].origin.y - (newHeight - (int)(NSHeight([window frame]))), [window frame].size.width, newHeight);
-	[window setFrame:r display:YES animate:YES];
-}
-
-//
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-	[self resizeWindow:165];
 	[flurry setAlphaValue:0.5];
 	defaults = [NSUserDefaults standardUserDefaults];
 	
@@ -114,12 +105,8 @@
 	[browseButton setEnabled:FALSE];
 	[resignButton setEnabled:FALSE];
 	
-	flurry.hidden = NO;
 	[flurry startAnimation:self];
-	[flurry setAlphaValue:1.0];
-	
-	[self resizeWindow:205];
-	
+
 	[self performSelectorInBackground:@selector(resignThread) withObject:nil];
 }
 
@@ -141,11 +128,7 @@
 	[browseButton setEnabled:TRUE];
 	[resignButton setEnabled:TRUE];
 	
-	flurry.hidden = YES;
 	[flurry stopAnimation:self];
-	[flurry setAlphaValue:0.5];
-	
-	[self resizeWindow:165];
 	
 	if (error)
 	{
