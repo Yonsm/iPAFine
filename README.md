@@ -7,4 +7,4 @@ iOS IPA package refine and resign
 
 Support 32/64 and Universal (FAT_MAGIC and FAT_CIGAM from [pebble](https://github.com/crazypebble/iPAFine/commit/14583fad7b773a393d9136eb3c8db4cacb544ee2)) binary
 
-Test only
+For testing only
