@@ -60,7 +60,7 @@
 	[openDlg setAllowsMultipleSelection:FALSE];
 	[openDlg setAllowsOtherFileTypes:FALSE];
 	
-	if ( [openDlg runModalForTypes:[NSArray arrayWithObject:@"ipa"]] == NSOKButton )
+	if ( [openDlg runModalForTypes:@[@"ipa", @"dylib"]] == NSOKButton )
 	{		
 		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
 		[pathField setStringValue:fileNameOpened];

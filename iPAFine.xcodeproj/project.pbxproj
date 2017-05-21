@@ -14,7 +14,7 @@
 		249B033D15F794EC00294C95 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 249B033B15F794EC00294C95 /* Credits.rtf */; };
 		249B033E15F794EC00294C95 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 249B033C15F794EC00294C95 /* MainMenu.xib */; };
 		24E0393E14C987BB003AA3D9 /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 24E0393D14C987BB003AA3D9 /* Icon.icns */; };
-		24F7531F14C9AE540007E549 /* iPAFine.mm in Sources */ = {isa = PBXBuildFile; fileRef = 24F7531E14C9AE540007E549 /* iPAFine.mm */; };
+		24EF77701ED1998C005C1ADD /* iPAFine.mm in Sources */ = {isa = PBXBuildFile; fileRef = 24EF776F1ED1998C005C1ADD /* iPAFine.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,8 +32,8 @@
 		249B033B15F794EC00294C95 /* Credits.rtf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.rtf; path = Credits.rtf; sourceTree = "<group>"; };
 		249B033C15F794EC00294C95 /* MainMenu.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = MainMenu.xib; sourceTree = "<group>"; };
 		24E0393D14C987BB003AA3D9 /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
-		24F7531D14C9AE540007E549 /* iPAFine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = iPAFine.h; path = Classes/Model/iPAFine.h; sourceTree = SOURCE_ROOT; };
-		24F7531E14C9AE540007E549 /* iPAFine.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = iPAFine.mm; path = Classes/Model/iPAFine.mm; sourceTree = SOURCE_ROOT; };
+		24EF776F1ED1998C005C1ADD /* iPAFine.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = iPAFine.mm; sourceTree = "<group>"; };
+		24EF77711ED199B8005C1ADD /* iPAFine.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iPAFine.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,37 +89,13 @@
 		2447BD0414C9830000A34F0F /* Classes */ = {
 			isa = PBXGroup;
 			children = (
-				2447BD0814C9830000A34F0F /* Model */,
-				2447BD0914C9830000A34F0F /* View */,
-				2447BD0714C9830000A34F0F /* Controller */,
+				24EF77711ED199B8005C1ADD /* iPAFine.h */,
+				24EF776F1ED1998C005C1ADD /* iPAFine.mm */,
 				2447BD0514C9830000A34F0F /* AppDelegate.h */,
 				2447BD0614C9830000A34F0F /* AppDelegate.mm */,
 			);
 			path = Classes;
 			sourceTree = SOURCE_ROOT;
-		};
-		2447BD0714C9830000A34F0F /* Controller */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Controller;
-			sourceTree = "<group>";
-		};
-		2447BD0814C9830000A34F0F /* Model */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Model;
-			sourceTree = "<group>";
-		};
-		2447BD0914C9830000A34F0F /* View */ = {
-			isa = PBXGroup;
-			children = (
-				24F7531D14C9AE540007E549 /* iPAFine.h */,
-				24F7531E14C9AE540007E549 /* iPAFine.mm */,
-			);
-			path = View;
-			sourceTree = "<group>";
 		};
 		2447BD0A14C9830000A34F0F /* Resources */ = {
 			isa = PBXGroup;
@@ -225,9 +201,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				24EF77701ED1998C005C1ADD /* iPAFine.mm in Sources */,
 				2447BD1514C9830000A34F0F /* AppDelegate.mm in Sources */,
 				2447BD1A14C9830000A34F0F /* Main.m in Sources */,
-				24F7531F14C9AE540007E549 /* iPAFine.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
