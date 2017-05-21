@@ -1,6 +1,6 @@
 
 
-#import "AppDelegate.h"
+#import "iPAFine.h"
 #include <mach-o/loader.h>
 #include <mach-o/fat.h>
 

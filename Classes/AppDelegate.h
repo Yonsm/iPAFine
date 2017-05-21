@@ -1,9 +1,9 @@
 
 
-#import "iPAFine.h"
+#import <Cocoa/Cocoa.h>
 
 //
-@interface AppDelegate : iPAFine <NSApplicationDelegate, NSTextFieldDelegate>
+@interface AppDelegate : NSObject <NSApplicationDelegate, NSTextFieldDelegate>
 {
 	NSUserDefaults *defaults;
 

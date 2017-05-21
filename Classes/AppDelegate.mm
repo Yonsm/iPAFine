@@ -1,7 +1,7 @@
 
 
 #import "AppDelegate.h"
-
+#import "iPAFine.h"
 
 @implementation AppDelegate
 @synthesize window;
@@ -133,7 +133,10 @@
 {
 	@autoreleasepool
 	{
-		NSString *error = [super refine:pathField.stringValue dylibPath:dylibField.stringValue certName:certField.stringValue provPath:provField.stringValue];
+		NSString *error = [[[iPAFine alloc] init] refine:pathField.stringValue
+											   dylibPath:dylibField.stringValue
+												certName:certField.stringValue
+												provPath:provField.stringValue];
 		[self performSelectorOnMainThread:@selector(resignDone:) withObject:error waitUntilDone:YES];
 	}
 }
