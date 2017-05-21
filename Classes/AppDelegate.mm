@@ -26,24 +26,24 @@
 		[certField setStringValue:[defaults valueForKey:@"CERT_NAME"]];
 	if ([defaults valueForKey:@"MOBILEPROVISION_PATH"])
 		[provField setStringValue:[defaults valueForKey:@"MOBILEPROVISION_PATH"]];
-
+	
 	if (![[NSFileManager defaultManager] fileExistsAtPath:@"/usr/bin/zip"])
 	{
-		NSRunAlertPanel(@"Error", 
+		NSRunAlertPanel(@"Error",
 						@"This app cannot run without the zip utility present at /usr/bin/zip",
 						@"OK",nil,nil);
 		exit(0);
 	}
 	if (![[NSFileManager defaultManager] fileExistsAtPath:@"/usr/bin/unzip"])
 	{
-		NSRunAlertPanel(@"Error", 
+		NSRunAlertPanel(@"Error",
 						@"This app cannot run without the unzip utility present at /usr/bin/unzip",
 						@"OK",nil,nil);
 		exit(0);
 	}
 	if (![[NSFileManager defaultManager] fileExistsAtPath:@"/usr/bin/codesign"])
 	{
-		NSRunAlertPanel(@"Error", 
+		NSRunAlertPanel(@"Error",
 						@"This app cannot run without the codesign utility present at /usr/bin/codesign",
 						@"OK",nil, nil);
 		exit(0);
@@ -61,7 +61,7 @@
 	[openDlg setAllowsOtherFileTypes:FALSE];
 	
 	if ( [openDlg runModalForTypes:@[@"ipa", @"dylib"]] == NSOKButton )
-	{		
+	{
 		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
 		[pathField setStringValue:fileNameOpened];
 	}
@@ -78,7 +78,7 @@
 	[openDlg setAllowsOtherFileTypes:FALSE];
 	
 	if ( [openDlg runModalForTypes:[NSArray arrayWithObject:@"mobileprovision"]] == NSOKButton )
-	{		
+	{
 		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
 		[provField setStringValue:fileNameOpened];
 	}
@@ -88,12 +88,12 @@
 - (IBAction)browseDylib:(id)sender
 {
 	NSOpenPanel* openDlg = [NSOpenPanel openPanel];
-
+	
 	[openDlg setCanChooseFiles:TRUE];
 	[openDlg setCanChooseDirectories:FALSE];
 	[openDlg setAllowsMultipleSelection:FALSE];
 	[openDlg setAllowsOtherFileTypes:FALSE];
-
+	
 	if ( [openDlg runModalForTypes:[NSArray arrayWithObject:@"dylib"]] == NSOKButton )
 	{
 		NSString* fileNameOpened = [[openDlg filenames] objectAtIndex:0];
@@ -104,7 +104,7 @@
 //
 - (IBAction)showHelp:(id)sender
 {
-	NSRunAlertPanel(@"How to use iReSign", 
+	NSRunAlertPanel(@"How to use iReSign",
 					@"iReSign allows you to re-sign any unencrypted ipa-file with any certificate for which you hold the corresponding private key.\n\n1. Drag your unsigned .ipa file to the top box, or use the browse button.\n\n2. Enter your full certificate name from Keychain Access, for example \"iPhone Developer: Firstname Lastname (XXXXXXXXXX)\" in the bottom box.\n\n3. Click ReSign! and wait. The resigned file will be saved in the same folder as the original file.",
 					@"OK",nil, nil);
 }
@@ -124,7 +124,7 @@
 	[resignButton setEnabled:FALSE];
 	
 	[flurry startAnimation:self];
-
+	
 	[self performSelectorInBackground:@selector(resignThread) withObject:nil];
 }
 

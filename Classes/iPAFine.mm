@@ -13,18 +13,18 @@
 	task.launchPath = path;
 	task.arguments = arguments;
 	if (currentDirectory) task.currentDirectoryPath = currentDirectory;
-
+	
 	NSPipe *pipe = [NSPipe pipe];
 	task.standardOutput = pipe;
 	task.standardError = pipe;
-
+	
 	NSFileHandle *file = [pipe fileHandleForReading];
-
+	
 	[task launch];
-
+	
 	NSData *data = [file readDataToEndOfFile];
 	NSString *result = data.length ? [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] : nil;
-
+	
 	//NSLog(@"CMD:\n%@\n%@ARG\n\n%@\n\n", path, arguments, (result ? result : @""));
 	return result;
 }
@@ -83,21 +83,21 @@
 		return;
 	}
 	NSString *exePath = [appPath stringByAppendingPathComponent:exeName];
-
+	
 	NSString *result = [self doTask:@"/usr/bin/lipo" arguments:[NSArray arrayWithObjects:@"-info", exePath, nil]];
-
+	
 	if (([result rangeOfString:@"armv6 armv7"].location == NSNotFound) && ([result rangeOfString:@"armv7 armv6"].location == NSNotFound))
 	{
 		return;
 	}
-
+	
 	NSString *newPath = [exePath stringByAppendingString:@"NEW"];
 	result = [self doTask:@"/usr/bin/lipo" arguments:[NSArray arrayWithObjects:@"-remove", @"armv6", @"-output", newPath, exePath, nil]];
 	if (result.length)
 	{
 		_error = [@"Strip failed:" stringByAppendingString:result];
 	}
-
+	
 	NSError *error = nil;
 	BOOL ret = [[NSFileManager defaultManager] removeItemAtPath:exePath error:&error] && [[NSFileManager defaultManager] moveItemAtPath:newPath toPath:exePath error:&error];
 	if (!ret)
@@ -111,33 +111,33 @@
 {
 	// 获取显示名称
 	NSString *DISPNAME = ipaPath.lastPathComponent.stringByDeletingPathExtension;
-
+	
 	if ([DISPNAME hasPrefix:@"iOS."]) DISPNAME = [DISPNAME substringFromIndex:4];
 	else if ([DISPNAME hasPrefix:@"iPad."]) DISPNAME = [DISPNAME substringFromIndex:5];
 	else if ([DISPNAME hasPrefix:@"iPhone."]) DISPNAME = [DISPNAME substringFromIndex:7];
-
+	
 	NSRange range = [DISPNAME rangeOfCharacterFromSet:[NSCharacterSet characterSetWithCharactersInString:@"_- .（(["]];
 	if (range.location != NSNotFound)
 	{
 		DISPNAME = [DISPNAME substringToIndex:range.location];
 	}
-
+	
 	if ([DISPNAME hasSuffix:@"HD"]) DISPNAME = [DISPNAME substringToIndex:DISPNAME.length - 2];
-
+	
 	//
 	NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
 	NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
-
+	
 	// 获取程序类型
 	NSArray *devices = [info objectForKey:@"UIDeviceFamily"];
 	NSUInteger family = 0;
 	for (id device in devices) family += [device intValue];
 	NSString *PREFIX = (family == 3) ? @"iOS" : ((family == 2) ? @"iPad" : @"iPhone");
-
+	
 	// 修改显示名称
 	[info setObject:DISPNAME forKey:@"CFBundleDisplayName"];
 	[info writeToFile:infoPath atomically:YES];
-
+	
 	static const NSString *langs[] = {@"zh-Hans", @"zh_Hans", @"zh_CN", @"zh-CN", @"zh"};
 	for (NSUInteger i = 0; i < sizeof(langs) / sizeof(langs[0]); i++)
 	{
@@ -149,7 +149,7 @@
 			[localize writeToFile:localizePath atomically:YES];
 		}
 	}
-
+	
 	// 修改 iTunes 项目名称
 	NSString *metaPath = [[[appPath stringByDeletingLastPathComponent] stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"iTunesMetadata.plist"];
 	NSMutableDictionary *meta = [NSMutableDictionary dictionaryWithContentsOfFile:metaPath];
@@ -159,12 +159,12 @@
 		[meta setObject:DISPNAME forKey:@"itemName"];
 		[meta writeToFile:metaPath atomically:YES];
 	}
-
+	
 	//
 	/*NSString *VERSION = meta ? [meta objectForKey:@"bundleShortVersionString"] : nil;
 	 if (VERSION.length == 0) VERSION = [info objectForKey:@"CFBundleVersion"];
 	 if (VERSION.length == 0) VERSION = [info objectForKey:@"CFBundleShortVersionString"];*/
-
+	
 	return [NSString stringWithFormat:@"%@/%@.%@.ipa", ipaPath.stringByDeletingLastPathComponent, PREFIX, DISPNAME/*, VERSION*/];
 }
 
@@ -180,17 +180,17 @@
 		{
 			NSInteger fromPosition = [[embeddedProvisioningLines objectAtIndex:i+1] rangeOfString:@"<string>"].location + 8;
 			NSInteger toPosition = [[embeddedProvisioningLines objectAtIndex:i+1] rangeOfString:@"</string>"].location;
-
+			
 			NSRange range;
 			range.location = fromPosition;
 			range.length = toPosition - fromPosition;
-
+			
 			NSString *identifier = [[embeddedProvisioningLines objectAtIndex:i+1] substringWithRange:range];
 			if (![identifier hasSuffix:@".*"])
 			{
 				NSRange range = [identifier rangeOfString:@"."];
 				if (range.location != NSNotFound) identifier = [identifier substringFromIndex:range.location + 1];
-
+				
 				NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:[appPath stringByAppendingPathComponent:@"Info.plist"]];
 				if (![[info objectForKey:@"CFBundleIdentifier"] isEqualToString:identifier])
 				{
@@ -221,10 +221,10 @@
 			int delta = sizeof(mach_header_64) - sizeof(mach_header);
 			lseek(fd, delta, SEEK_CUR);
 		}
-
+		
 		char *buffer = (char *)malloc(header.sizeofcmds + 2048);
 		read(fd, buffer, header.sizeofcmds);
-
+		
 		if ([[NSFileManager defaultManager] fileExistsAtPath:dylibPath])
 		{
 			dylibPath = [@"@executable_path" stringByAppendingPathComponent:[dylibPath lastPathComponent]];
@@ -246,12 +246,12 @@
 				last = p;
 			}
 		}
-
+		
 		if ((char *)p - buffer != header.sizeofcmds)
 		{
 			NSLog(@"LC payload not mismatch: %@", exePathForInfoOnly);
 		}
-
+		
 		if (last)
 		{
 			struct dylib_command *inject = (struct dylib_command *)((char *)last + last->cmdsize);
@@ -271,12 +271,12 @@
 			inject->dylib.current_version = 0x00010000;
 			inject->dylib.compatibility_version = 0x00010000;
 			strcpy((char *)inject + inject->dylib.name.offset, dylib);
-
+			
 			header.ncmds++;
 			header.sizeofcmds += inject->cmdsize;
 			lseek(fd, archPoint, SEEK_SET);
 			write(fd, &header, sizeof(header));
-
+			
 			lseek(fd, archPoint + ((header.magic == MH_MAGIC_64) ? sizeof(mach_header_64) : sizeof(mach_header)), SEEK_SET);
 			write(fd, buffer, header.sizeofcmds);
 		}
@@ -284,7 +284,7 @@
 		{
 			_error = [NSString stringWithFormat:@"Inject failed: No valid LC_LOAD_DYLIB %@", exePathForInfoOnly];
 		}
-
+		
 		free(buffer);
 	}
 }
@@ -314,7 +314,7 @@
 			read(fd, &header, sizeof(fat_header));
 			int nArch = header.nfat_arch;
 			if (magic == FAT_CIGAM) nArch = [self bigEndianToSmallEndian:header.nfat_arch];
-
+			
 			struct fat_arch arch;
 			NSMutableArray *offsetArray = [NSMutableArray array];
 			for (int i = 0; i < nArch; i++)
@@ -325,7 +325,7 @@
 				if (magic == FAT_CIGAM) offset = [self bigEndianToSmallEndian:arch.offset];
 				[offsetArray addObject:[NSNumber numberWithUnsignedInt:offset]];
 			}
-
+			
 			for (NSNumber *offsetNum in offsetArray)
 			{
 				lseek(fd, [offsetNum unsignedIntValue], SEEK_SET);
@@ -334,7 +334,7 @@
 				//					break;
 			}
 		}
-
+		
 		close(fd);
 	}
 }
@@ -351,14 +351,14 @@
 			{
 				[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
 			}
-
+			
 			NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:dylibPath, targetPath, nil]];
 			if (![[NSFileManager defaultManager] fileExistsAtPath:targetPath])
 			{
 				_error = [@"Failed to copy dylib file: " stringByAppendingString:result ? result : @""];
 			}
 		}
-
+		
 		// Find executable
 		NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
 		NSMutableDictionary *info = [NSMutableDictionary dictionaryWithContentsOfFile:infoPath];
@@ -382,7 +382,7 @@
 		//NSLog(@"Found embedded.mobileprovision, deleting.");
 		[[NSFileManager defaultManager] removeItemAtPath:targetPath error:nil];
 	}
-
+	
 	if (provPath.length)
 	{
 		NSString *result = [self doTask:@"/bin/cp" arguments:[NSArray arrayWithObjects:provPath, targetPath, nil]];
@@ -405,7 +405,7 @@
 			NSString *infoPath = [appPath stringByAppendingPathComponent:@"Info.plist"];
 			NSDictionary *info = [NSDictionary dictionaryWithContentsOfFile:infoPath];
 			NSString *bundleID = info[@"CFBundleIdentifier"];
-
+			
 			//security find-certificate -c "iPhone Developer: Qian Wu (V569CJEC8A)" | grep \"subj\"\<blob\> | grep "\\\\0230\\\\021\\\\006\\\\003U\\\\004\\\\013\\\\014\\\\012" | sed 's/.*\\0230\\021\\006\\003U\\004\\013\\014\\012\(.\{10\}\).*/\1/'
 			NSString *entitlementsPath = nil;
 			NSString *certInfo = [self doTask:@"/usr/bin/security" arguments:@[@"find-certificate", @"-c", certName]];
@@ -423,7 +423,7 @@
 					[dict writeToFile:entitlementsPath atomically:YES];
 				}
 			}
-
+			
 			//
 			NSString *result1 = [self doTask:@"/usr/bin/codesign" arguments:[NSArray arrayWithObjects:@"-fs", certName, appPath, (entitlementsPath ? @"--entitlements" : nil), entitlementsPath, nil]];
 			if ([result1 rangeOfString:@"replacing existing signature"].location == NSNotFound)
@@ -476,38 +476,38 @@
 {
 	//
 	NSString *workPath = ipaPath.stringByDeletingPathExtension;//[NSTemporaryDirectory() stringByAppendingPathComponent:@"CeleWare.iPAFine"];
-
+	
 	//NSLog(@"Setting up working directory in %@",workPath);
 	[[NSFileManager defaultManager] removeItemAtPath:workPath error:nil];
 	[[NSFileManager defaultManager] createDirectoryAtPath:workPath withIntermediateDirectories:TRUE attributes:nil error:nil];
-
+	
 	// Unzip
 	_error = nil;
 	NSString *appPath = [self unzipIPA:ipaPath workPath:workPath];
 	if (_error) return;
-
+	
 	// Strip
 	//[self stripApp:appPath];
 	//if (_error) return;
-
+	
 	// Rename
 	NSString *outPath = [self renameApp:appPath ipaPath:ipaPath];
-
+	
 	// Provision
 	[self injectApp:appPath dylibPath:dylibPath];
 	if (_error) return;
-
+	
 	// Provision
 	[self provApp:appPath provPath:provPath];
 	if (_error) return;
-
+	
 	// Sign
 	[self signApp:appPath certName:certName];
 	if (_error) return;
-
+	
 	// Remove origin
 	[[NSFileManager defaultManager] removeItemAtPath:ipaPath error:nil];
-
+	
 	// Zip
 	[self zipIPA:workPath outPath:outPath];
 }
@@ -516,13 +516,13 @@
 - (NSString *)refine:(NSString *)ipaPath dylibPath:(NSString *)dylibPath certName:(NSString *)certName provPath:(NSString *)provPath
 {
 	_error = nil;
-
+	
 	if (dylibPath.length && [[NSFileManager defaultManager] fileExistsAtPath:dylibPath])
 	{
 		[self signApp:dylibPath certName:certName];
 		if (_error) return _error;
 	}
-
+	
 	BOOL isDir = NO;
 	if ([[NSFileManager defaultManager] fileExistsAtPath:ipaPath isDirectory:&isDir])
 	{
